@@ -1,6 +1,6 @@
 from .core import (
-    LPCut,
     KnapsackMILP,
+    LPCut,
     LPResult,
     cut_features,
     generate_cover_cuts,
