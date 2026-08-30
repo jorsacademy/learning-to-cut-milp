@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "learning-to-cut-milp"
-version = "0.1.0"
-description = "Learning-guided cover-cut selection for transparent MILP experiments"
+version = "0.2.0"
+description = "Learning-guided selection of provably valid cover cuts for transparent MILP experiments"
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "PolyForm Noncommercial 1.0.0"}
@@ -20,6 +20,9 @@ dev = ["pytest>=8", "ruff>=0.6"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
 
 [tool.ruff]
 line-length = 100

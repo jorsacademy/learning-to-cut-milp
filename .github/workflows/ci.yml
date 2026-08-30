@@ -18,5 +18,25 @@ jobs:
           cache: pip
       - run: python -m pip install --upgrade pip
       - run: pip install -e ".[dev]"
+      - run: python -m compileall -q src scripts examples
       - run: ruff check .
       - run: pytest -q
+      - name: End-to-end learning smoke test
+        run: |
+          python scripts/train.py \
+            --instances 5 \
+            --validation-instances 3 \
+            --items 12 \
+            --constraints 3 \
+            --rounds 2 \
+            --epochs 2 \
+            --hidden-dim 12 \
+            --checkpoint /tmp/cut_scorer.pt
+          python scripts/benchmark.py \
+            --checkpoint /tmp/cut_scorer.pt \
+            --instances 2 \
+            --items 12 \
+            --constraints 3 \
+            --rounds 2 \
+            --seed-start 900000 \
+            --json > /tmp/benchmark.json
