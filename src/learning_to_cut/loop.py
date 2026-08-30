@@ -8,12 +8,13 @@ import torch
 
 from .core import (
     LPCut,
+    KnapsackMILP,
+    LPResult,
     cut_features,
     generate_cover_cuts,
     rank_candidates_by_expert,
     solve_lp,
 )
-from .core import KnapsackMILP
 from .model import CutScorer
 
 
@@ -35,26 +36,26 @@ class CuttingResult:
 def _select_index(
     problem: KnapsackMILP,
     cuts: list[LPCut],
+    lp: LPResult,
     candidates: list[LPCut],
     policy: Policy,
     rng: np.random.Generator,
     model: CutScorer | None,
 ) -> tuple[int, int]:
-    lp = solve_lp(problem, cuts)
     if policy == "random":
-        return int(rng.integers(len(candidates))), 1
+        return int(rng.integers(len(candidates))), 0
     features = np.stack([cut_features(problem, lp.x, cut) for cut in candidates])
     if policy == "efficacy":
-        return int(np.argmax(features[:, 1])), 1
+        return int(np.argmax(features[:, 1])), 0
     if policy == "oracle":
         scores = rank_candidates_by_expert(problem, cuts, lp, candidates)
-        return int(np.argmax(scores)), len(candidates) + 1
+        return int(np.argmax(scores)), len(candidates)
     if policy == "learned":
         if model is None:
             raise ValueError("learned policy requires a model")
         with torch.no_grad():
             scores = model(torch.tensor(features, dtype=torch.float32)).cpu().numpy()
-        return int(np.argmax(scores)), 1
+        return int(np.argmax(scores)), 0
     raise ValueError(f"unknown policy: {policy}")
 
 
@@ -82,6 +83,7 @@ def run_cutting_plane(
         selected, selection_lp_solves = _select_index(
             problem,
             cuts,
+            current,
             candidates,
             policy,
             rng,
