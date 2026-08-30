@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from itertools import combinations
 
 import numpy as np
 from scipy.optimize import linprog
@@ -68,32 +67,64 @@ def solve_lp(problem: KnapsackMILP, cuts: list[LPCut] | None = None) -> LPResult
     return LPResult(objective=float(-result.fun), x=np.asarray(result.x, dtype=float))
 
 
+def _minimal_cover(problem: KnapsackMILP, order: np.ndarray) -> tuple[int, ...] | None:
+    selected: list[int] = []
+    total_weight = 0.0
+    for raw_index in order:
+        index = int(raw_index)
+        selected.append(index)
+        total_weight += float(problem.weights[index])
+        if total_weight > problem.capacity:
+            break
+    if total_weight <= problem.capacity:
+        return None
+
+    # Remove any item whose removal still leaves a cover. This preserves validity and
+    # produces a minimal cover without enumerating exponentially many subsets.
+    changed = True
+    while changed:
+        changed = False
+        for index in selected.copy():
+            remaining_weight = sum(
+                float(problem.weights[other]) for other in selected if other != index
+            )
+            if remaining_weight > problem.capacity:
+                selected.remove(index)
+                changed = True
+    return tuple(sorted(selected))
+
+
 def generate_cover_cuts(
     problem: KnapsackMILP,
     x: np.ndarray,
-    max_cover_size: int = 5,
     violation_tol: float = 1e-8,
 ) -> list[LPCut]:
     if x.shape != problem.profits.shape:
         raise ValueError("x has wrong shape")
     n = problem.profits.size
+    index_jitter = np.arange(n, dtype=float) * 1e-6
+    score_vectors = [
+        x,
+        x * problem.weights,
+        x * problem.profits,
+        problem.profits / problem.weights,
+        problem.weights,
+        problem.profits,
+        x + index_jitter,
+        x - index_jitter,
+    ]
+
     candidates: list[LPCut] = []
     seen: set[tuple[int, ...]] = set()
-    for size in range(2, min(max_cover_size, n) + 1):
-        for subset in combinations(range(n), size):
-            if float(problem.weights[list(subset)].sum()) <= problem.capacity:
-                continue
-            # Keep minimal covers to avoid a flood of obviously dominated inequalities.
-            if any(
-                float(problem.weights[list(subset[:k] + subset[k + 1 :])].sum())
-                > problem.capacity
-                for k in range(size)
-            ):
-                continue
-            violation = float(x[list(subset)].sum() - (size - 1))
-            if violation > violation_tol and subset not in seen:
-                candidates.append(LPCut(indices=subset))
-                seen.add(subset)
+    for scores in score_vectors:
+        order = np.argsort(scores)[::-1]
+        subset = _minimal_cover(problem, order)
+        if subset is None or subset in seen:
+            continue
+        violation = float(x[list(subset)].sum() - (len(subset) - 1))
+        if violation > violation_tol:
+            candidates.append(LPCut(indices=subset))
+            seen.add(subset)
     return candidates
 
 
