@@ -7,8 +7,8 @@ import numpy as np
 import torch
 
 from .core import (
-    LPCut,
     KnapsackMILP,
+    LPCut,
     LPResult,
     cut_features,
     generate_cover_cuts,
@@ -16,7 +16,6 @@ from .core import (
     solve_lp,
 )
 from .model import CutScorer
-
 
 Policy = Literal["random", "efficacy", "oracle", "learned"]
 
