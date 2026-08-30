@@ -6,7 +6,13 @@ import numpy as np
 import torch
 from torch import nn
 
-from .core import cut_features, generate_cover_cuts, generate_knapsack, rank_candidates_by_expert, solve_lp
+from .core import (
+    cut_features,
+    generate_cover_cuts,
+    generate_knapsack,
+    rank_candidates_by_expert,
+    solve_lp,
+)
 
 
 class CutScorer(nn.Module):
